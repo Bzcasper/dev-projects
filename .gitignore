@@ -1,0 +1,206 @@
+# ==========================================
+# Dependencies & Runtimes
+# ==========================================
+node_modules/
+**/node_modules
+.pnpm-store/
+.deno/
+.venv/
+__pycache__/
+
+# ==========================================
+# Build Outputs & Artifacts
+# ==========================================
+dist/
+build/
+out/
+dist-ssr/
+packages/extension/*.zip
+packages/desktop/web-dist/
+packages/desktop/dist/
+packages/desktop-standalone/dist/
+packages/desktop-standalone/prompt-optimizer-*
+*.tar.gz
+*.zip
+*.dmg
+*.exe
+*.msi
+*.deb
+*.rpm
+*.AppImage
+*.tsbuildinfo
+.turbo/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+
+# ==========================================
+# Logs & Debug Files
+# ==========================================
+logs/
+*.log
+**/logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.npm/
+.yarn-integrity/
+debug.log
+.debug/
+*.pid
+*.seed
+*.pid.lock
+
+# ==========================================
+# Caches & Temporary Files
+# ==========================================
+.cache/
+.temp/
+.tmp/
+*.tmp
+*.temp
+*.swp
+*.swo
+*.swn
+*~
+*.orig
+*.rej
+.vite/
+.eslintcache
+.stylelintcache
+.rollup.cache/
+.hypothesis/
+tmp/
+
+# ==========================================
+# Testing
+# ==========================================
+coverage/
+**/coverage
+.nyc_output/
+junit.xml
+test-results/
+playwright-report/
+*.lcov
+
+# ==========================================
+# Environment & Local Config
+# ==========================================
+.env
+.env.local
+.env.*.local
+*.local
+.mcp.json
+claude-flow.config.json
+
+# ==========================================
+# IDE & Editor
+# ==========================================
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+.idea/
+*.code-workspace
+.project
+.settings
+.classpath
+.factorypath
+.buildpath
+.target/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# ==========================================
+# OS-specific
+# ==========================================
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# macOS
+.DS_Store
+._*
+.AppleDouble
+.LSOverride
+Icon
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Linux
+*~
+.directory
+.Trash-*
+.nfs*
+
+# ==========================================
+# Security & Sensitive Info
+# ==========================================
+*.pem
+*.key
+*.crt
+*.p12
+.certificates/
+
+# ==========================================
+# Project Specific
+# ==========================================
+# prompt-optimizer
+prompt-optimizer-datas/
+prompt-optimizer-data/
+media/
+captions/
+
+# claude-flow
+.claude/
+.swarm/
+.hive-mind/
+memory/
+coordination/
+*.db
+*.db-journal
+*.db-wal
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+claude-flow
+claude-flow.bat
+claude-flow.ps1
+hive-mind-prompt-*.txt
+
+# mcphub
+data/
+
+# ai-agents-no-code-tools
+.DS_Store
+._.DS_Store
+__pycache__
+.hypothesis
+.venv
+media
+tmp
+captions

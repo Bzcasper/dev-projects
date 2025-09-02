@@ -1,0 +1,113 @@
+{
+    email robertmcasper@gmail.com
+}
+
+trendradar.ai {
+    reverse_proxy localhost:5678 {
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-Host {host}
+    }
+    
+    header {
+        Strict-Transport-Security max-age=31536000; includeSubDomains; preload
+        X-Frame-Options DENY
+        X-Content-Type-Options nosniff
+        Referrer-Policy no-referrer
+    }
+    
+    log {
+        output file /var/log/caddy/trendradar.ai.log
+    }
+    
+    redir http://trendradar.ai https://trendradar.ai{uri}
+}
+
+n8n.trendradar.ai {
+    reverse_proxy localhost:5678 {
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-Host {host}
+    }
+    
+    header {
+        Strict-Transport-Security max-age=31536000; includeSubDomains; preload
+        X-Frame-Options DENY
+        X-Content-Type-Options nosniff
+        Referrer-Policy no-referrer
+    }
+    
+    log {
+        output file /var/log/caddy/n8n.trendradar.ai.log
+    }
+    
+    redir http://n8n.trendradar.ai https://n8n.trendradar.ai{uri}
+}
+
+ollama.trendradar.ai {
+    reverse_proxy localhost:11434 {
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-Host {host}
+    }
+    
+    header {
+        Strict-Transport-Security max-age=31536000; includeSubDomains; preload
+        X-Frame-Options DENY
+        X-Content-Type-Options nosniff
+        Referrer-Policy no-referrer
+    }
+    
+    log {
+        output file /var/log/caddy/ollama.trendradar.ai.log
+    }
+    
+    redir http://ollama.trendradar.ai https://ollama.trendradar.ai{uri}
+}
+
+qdrant.trendradar.ai {
+    reverse_proxy localhost:6333 {
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-Host {host}
+    }
+    
+    header {
+        Strict-Transport-Security max-age=31536000; includeSubDomains; preload
+        X-Frame-Options DENY
+        X-Content-Type-Options nosniff
+        Referrer-Policy no-referrer
+    }
+    
+    log {
+        output file /var/log/caddy/qdrant.trendradar.ai.log
+    }
+    
+    redir http://qdrant.trendradar.ai https://qdrant.trendradar.ai{uri}
+}
+
+admin.trendradar.ai {
+    reverse_proxy localhost:5432 {
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-Host {host}
+    }
+    
+    header {
+        Strict-Transport-Security max-age=31536000; includeSubDomains; preload
+        X-Frame-Options DENY
+        X-Content-Type-Options nosniff
+        Referrer-Policy no-referrer
+    }
+    
+    log {
+        output file /var/log/caddy/admin.trendradar.ai.log
+    }
+    
+    redir http://admin.trendradar.ai https://admin.trendradar.ai{uri}
+}
