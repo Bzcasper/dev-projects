@@ -172,35 +172,36 @@ Temporary Items
 # prompt-optimizer
 prompt-optimizer-datas/
 prompt-optimizer-data/
-media/
-captions/
+**/media/
+**/captions/
 
-# claude-flow
-.claude/
-.swarm/
-.hive-mind/
-memory/
-coordination/
+# claude-flow runtime/cache files (keep source code)
+**/.claude/
+**/.swarm/
+**/.hive-mind/
+**/memory/
+**/coordination/
 *.db
 *.db-journal
 *.db-wal
 *.sqlite
 *.sqlite-journal
 *.sqlite-wal
-claude-flow
-claude-flow.bat
-claude-flow.ps1
-hive-mind-prompt-*.txt
+**/claude-flow.bat
+**/claude-flow.ps1
+**/hive-mind-prompt-*.txt
 
-# mcphub
-data/
+# mcphub runtime data (keep source code)  
+**/data/
+**/servers.json
 
-# ai-agents-no-code-tools
-.DS_Store
-._.DS_Store
-__pycache__
-.hypothesis
-.venv
-media
-tmp
-captions
+# n8n-stack runtime data
+**/postgres_data/
+**/n8n_data/
+**/qdrant_data/
+**/ollama_data/
+
+# ai-agents-no-code-tools runtime
+**/uploads/
+**/generated/
+**/temp_media/

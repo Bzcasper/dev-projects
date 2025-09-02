@@ -1,0 +1,12 @@
+{
+  "name": "dev-projects",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["ai", "development", "claude-flow", "mcphub", "prompt-optimizer", "n8n", "automation"],
+  "author": "admin_bobby",
+  "license": "ISC",
+  "description": "Multi-project AI development workspace containing Claude Flow, MCPHub, Prompt Optimizer, N8N Stack, and AI Agents No-Code Tools"
+}
