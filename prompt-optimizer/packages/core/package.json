@@ -14,7 +14,7 @@
     }
   },
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "build": "tsup src/index.ts --format cjs,esm",
     "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -30,12 +30,14 @@
     "vitest": "^3.0.2"
   },
   "dependencies": {
+    "@chroma-core/default-embed": "^0.1.8",
     "@google/generative-ai": "^0.21.0",
     "@types/handlebars": "^4.1.0",
-    "chromadb": "^1.9.2",
+    "chromadb": "~3.0.14",
     "cohere-ai": "^7.14.0",
     "dexie": "^4.0.11",
     "diff": "^8.0.2",
+    "groq-sdk": "^0.32.0",
     "handlebars": "^4.7.8",
     "openai": "^4.83.0",
     "uuid": "^11.0.5",

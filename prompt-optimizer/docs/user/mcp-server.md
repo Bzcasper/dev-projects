@@ -1,12 +1,14 @@
+<!-- @format -->
+
 # MCP Server User Guide
 
 Prompt Optimizer supports the Model Context Protocol (MCP), enabling integration with AI applications that support MCP, such as Claude Desktop.
 
 ## 🎯 Features
 
--   **optimize-user-prompt**: Optimizes user prompts to improve LLM performance.
--   **optimize-system-prompt**: Optimizes system prompts to improve LLM performance.
--   **iterate-prompt**: Iteratively improves mature prompts based on specific requirements.
+- **optimize-user-prompt**: Optimizes user prompts to improve LLM performance.
+- **optimize-system-prompt**: Optimizes system prompts to improve LLM performance.
+- **iterate-prompt**: Iteratively improves mature prompts based on specific requirements.
 
 ## 🚀 Quick Start
 
@@ -39,8 +41,8 @@ cd prompt-optimizer
 # 2. Install dependencies
 pnpm install
 
-# 3. Configure environment variables (copy and edit .env.local)
-cp env.local.example .env.local
+# 3. Configure environment variables (edit .env file)
+# Edit the .env file in the project root with your configuration
 
 # 4. Start MCP server
 pnpm mcp:dev
@@ -93,9 +95,9 @@ MCP_DEFAULT_LANGUAGE=zh
 
 #### 1. Find Configuration Directory
 
--   **Windows**: `%APPDATA%\Claude\services`
--   **macOS**: `~/Library/Application Support/Claude/services`
--   **Linux**: `~/.config/Claude/services`
+- **Windows**: `%APPDATA%\Claude\services`
+- **macOS**: `~/Library/Application Support/Claude/services`
+- **Linux**: `~/.config/Claude/services`
 
 #### 2. Edit Configuration File
 
@@ -118,11 +120,11 @@ Create or edit the `services.json` file:
 
 The MCP server supports the standard MCP protocol and can be used by any compatible client:
 
--   **Connection URLs**:
-    -   Docker deployment: `http://localhost:8081/mcp`
-    -   Local deployment: `http://localhost:3000/mcp`
--   **Protocol**: HTTP Streamable
--   **Transport**: HTTP or stdio
+- **Connection URLs**:
+  - Docker deployment: `http://localhost:8081/mcp`
+  - Local deployment: `http://localhost:3000/mcp`
+- **Protocol**: HTTP Streamable
+- **Transport**: HTTP or stdio
 
 ## 🧪 Testing and Validation
 
@@ -139,6 +141,7 @@ npx @modelcontextprotocol/inspector
 ```
 
 In the Inspector Web UI:
+
 1.  Select transport method: `Streamable HTTP`
 2.  Server URL: `http://localhost:3000/mcp`
 3.  Click "Connect" to connect to the server.
@@ -184,6 +187,7 @@ MCP_DEFAULT_MODEL_PROVIDER=openai  # not OpenAI
 #### 4. Claude Desktop Connection Failure
 
 **Solution Steps**:
+
 1.  Confirm the MCP server is running.
 2.  Check if the URL is correct.
 3.  Confirm firewall settings.
@@ -203,9 +207,9 @@ docker run -e MCP_LOG_LEVEL=debug ...
 
 ## 📚 More Resources
 
--   [MCP Official Documentation](https://modelcontextprotocol.io)
--   [Developer Documentation](../../packages/mcp-server/README.md)
--   [Project Homepage](../../README.md)
+- [MCP Official Documentation](https://modelcontextprotocol.io)
+- [Developer Documentation](../../packages/mcp-server/README.md)
+- [Project Homepage](../../README.md)
 
 ## 🆘 Getting Help
 

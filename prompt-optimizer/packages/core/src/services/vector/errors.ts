@@ -19,7 +19,7 @@ export class VectorSearchError extends Error {
       | "DOCUMENT_ERROR"
       | "RERANKING_ERROR"
       | "CONFIG_ERROR",
-    details?: any
+    details?: any,
   ) {
     super(message);
     this.name = "VectorSearchError";

@@ -1,3 +1,5 @@
+/** @format */
+
 import {
   ILLMService,
   Message,
@@ -11,6 +13,7 @@ import { ModelManager } from "../model/manager";
 import { APIError, RequestConfigError } from "./errors";
 import OpenAI from "openai";
 import { GoogleGenerativeAI, GenerativeModel } from "@google/generative-ai";
+import Groq from "groq-sdk";
 import {
   isVercel,
   isDocker,
@@ -72,7 +75,7 @@ export class LLMService implements ILLMService {
    */
   private getOpenAIInstance(
     modelConfig: ModelConfig,
-    isStream: boolean = false,
+    isStream: boolean = false
   ): OpenAI {
     const apiKey = modelConfig.apiKey || "";
 
@@ -89,13 +92,13 @@ export class LLMService implements ILLMService {
         finalBaseURL = getProxyUrl(processedBaseURL, isStream);
         console.log(
           `使用Vercel${isStream ? "流式" : ""}API代理:`,
-          finalBaseURL,
+          finalBaseURL
         );
       } else if (modelConfig.useDockerProxy === true && isDocker()) {
         finalBaseURL = getProxyUrl(processedBaseURL, isStream);
         console.log(
           `使用Docker${isStream ? "流式" : ""}API代理:`,
-          finalBaseURL,
+          finalBaseURL
         );
       }
     }
@@ -119,7 +122,7 @@ export class LLMService implements ILLMService {
     if (typeof window !== "undefined") {
       config.dangerouslyAllowBrowser = true;
       console.log(
-        "[LLM Service] Browser-like environment detected. Setting dangerouslyAllowBrowser=true.",
+        "[LLM Service] Browser-like environment detected. Setting dangerouslyAllowBrowser=true."
       );
     }
 
@@ -134,7 +137,7 @@ export class LLMService implements ILLMService {
   private getGeminiModel(
     modelConfig: ModelConfig,
     systemInstruction?: string,
-    isStream: boolean = false,
+    isStream: boolean = false
   ): GenerativeModel {
     const apiKey = modelConfig.apiKey || "";
 
@@ -163,13 +166,13 @@ export class LLMService implements ILLMService {
         finalBaseURL = getProxyUrl(processedBaseURL, isStream);
         console.log(
           `使用Vercel${isStream ? "流式" : ""}API代理:`,
-          finalBaseURL,
+          finalBaseURL
         );
       } else if (modelConfig.useDockerProxy === true && isDocker()) {
         finalBaseURL = getProxyUrl(processedBaseURL, isStream);
         console.log(
           `使用Docker${isStream ? "流式" : ""}API代理:`,
-          finalBaseURL,
+          finalBaseURL
         );
       }
     }
@@ -177,11 +180,54 @@ export class LLMService implements ILLMService {
   }
 
   /**
+   * 获取Groq实例
+   */
+  private getGroqInstance(
+    modelConfig: ModelConfig,
+    isStream: boolean = false
+  ): Groq {
+    const apiKey = modelConfig.apiKey || "";
+
+    const defaultTimeout = isStream ? 60000 : 30000;
+    const timeout =
+      modelConfig.llmParams?.timeout !== undefined
+        ? modelConfig.llmParams.timeout
+        : defaultTimeout;
+
+    const config: any = {
+      apiKey: apiKey,
+      timeout: timeout,
+      maxRetries: isStream ? 2 : 3,
+    };
+
+    // Enable Vercel proxy if configured
+    if (modelConfig.useVercelProxy === true && isVercel()) {
+      const proxyUrl = getProxyUrl(
+        modelConfig.baseURL || "https://api.groq.com",
+        isStream
+      );
+      if (proxyUrl) {
+        config.baseURL = proxyUrl;
+        console.log(`🔄 Using Vercel proxy for Groq: ${proxyUrl}`);
+      }
+    }
+
+    // In any browser-like environment, we must set this flag to true
+    // to bypass the SDK's environment check.
+    if (typeof window !== "undefined") {
+      console.log("[LLM Service] Browser-like environment detected for Groq.");
+    }
+
+    const instance = new Groq(config);
+    return instance;
+  }
+
+  /**
    * 发送OpenAI消息（结构化格式）
    */
   private async sendOpenAIMessageStructured(
     messages: Message[],
-    modelConfig: ModelConfig,
+    modelConfig: ModelConfig
   ): Promise<LLMResponse> {
     const openai = this.getOpenAIInstance(modelConfig);
 
@@ -241,7 +287,9 @@ export class LLMService implements ILLMService {
     } catch (error) {
       console.error("OpenAI API调用失败:", error);
       throw new Error(
-        `OpenAI API调用失败: ${error instanceof Error ? error.message : String(error)}`,
+        `OpenAI API调用失败: ${
+          error instanceof Error ? error.message : String(error)
+        }`
       );
     }
   }
@@ -251,7 +299,7 @@ export class LLMService implements ILLMService {
    */
   private async sendGeminiMessageStructured(
     messages: Message[],
-    modelConfig: ModelConfig,
+    modelConfig: ModelConfig
   ): Promise<LLMResponse> {
     // 提取系统消息
     const systemMessages = messages.filter((msg) => msg.role === "system");
@@ -265,12 +313,12 @@ export class LLMService implements ILLMService {
 
     // 过滤出用户和助手消息
     const conversationMessages = messages.filter(
-      (msg) => msg.role !== "system",
+      (msg) => msg.role !== "system"
     );
 
     // 创建聊天会话
     const generationConfig = this.buildGeminiGenerationConfig(
-      modelConfig.llmParams,
+      modelConfig.llmParams
     );
 
     const chatOptions: any = {
@@ -310,6 +358,76 @@ export class LLMService implements ILLMService {
   }
 
   /**
+   * 发送Groq消息（结构化格式）
+   */
+  private async sendGroqMessageStructured(
+    messages: Message[],
+    modelConfig: ModelConfig
+  ): Promise<LLMResponse> {
+    const groq = this.getGroqInstance(modelConfig);
+
+    const formattedMessages = messages.map((msg) => ({
+      role: msg.role,
+      content: msg.content,
+    }));
+
+    const {
+      timeout, // Handled in getGroqInstance
+      model: llmParamsModel, // Avoid overriding main model
+      messages: llmParamsMessages, // Avoid overriding main messages
+      ...restLlmParams
+    } = modelConfig.llmParams || {};
+
+    const completionConfig: any = {
+      model: modelConfig.defaultModel,
+      messages: formattedMessages,
+      ...restLlmParams, // Spread other params from llmParams
+    };
+
+    try {
+      const response = await groq.chat.completions.create(completionConfig);
+
+      const choice = response.choices[0];
+      if (!choice?.message) {
+        throw new Error("未收到有效的响应");
+      }
+
+      let content = choice.message.content || "";
+      let reasoning = "";
+
+      // Handle reasoning content (if available in choice.message)
+      if ((choice.message as any).reasoning_content) {
+        reasoning = (choice.message as any).reasoning_content;
+      } else {
+        // Detect and separate think tags
+        const thinkMatch = content.match(/<think>(.*?)<\/think>/s);
+        if (thinkMatch) {
+          reasoning = thinkMatch[1];
+          content = content.replace(/<think>.*?<\/think>/s, "").trim();
+        }
+      }
+
+      const result: LLMResponse = {
+        content: content,
+        reasoning: reasoning || undefined,
+        metadata: {
+          model: modelConfig.defaultModel,
+          finishReason: choice.finish_reason || undefined,
+        },
+      };
+
+      return result;
+    } catch (error) {
+      console.error("Groq API调用失败:", error);
+      throw new Error(
+        `Groq API调用失败: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
+  }
+
+  /**
    * 格式化Gemini历史消息
    */
   private formatGeminiHistory(messages: Message[]): any[] {
@@ -344,7 +462,7 @@ export class LLMService implements ILLMService {
    */
   async sendMessageStructured(
     messages: Message[],
-    provider: string,
+    provider: string
   ): Promise<LLMResponse> {
     try {
       if (!provider) {
@@ -365,7 +483,9 @@ export class LLMService implements ILLMService {
         messagesCount: messages.length,
       });
 
-      if (modelConfig.provider === "gemini") {
+      if (modelConfig.provider === "groq") {
+        return this.sendGroqMessageStructured(messages, modelConfig);
+      } else if (modelConfig.provider === "gemini") {
         return this.sendGeminiMessageStructured(messages, modelConfig);
       } else {
         // OpenAI兼容格式的API，包括DeepSeek和自定义模型
@@ -396,7 +516,7 @@ export class LLMService implements ILLMService {
   async sendMessageStream(
     messages: Message[],
     provider: string,
-    callbacks: StreamHandlers,
+    callbacks: StreamHandlers
   ): Promise<void> {
     try {
       console.log("开始流式请求:", {
@@ -426,7 +546,7 @@ export class LLMService implements ILLMService {
     } catch (error) {
       console.error("流式请求失败:", error);
       callbacks.onError(
-        error instanceof Error ? error : new Error(String(error)),
+        error instanceof Error ? error : new Error(String(error))
       );
       throw error;
     }
@@ -438,7 +558,7 @@ export class LLMService implements ILLMService {
   private processStreamContentWithThinkTags(
     content: string,
     callbacks: StreamHandlers,
-    thinkState: { isInThinkMode: boolean; buffer: string },
+    thinkState: { isInThinkMode: boolean; buffer: string }
   ): void {
     // 如果没有推理回调，直接发送到主要内容流
     if (!callbacks.onReasoningToken) {
@@ -542,7 +662,7 @@ export class LLMService implements ILLMService {
   private async streamOpenAIMessage(
     messages: Message[],
     modelConfig: ModelConfig,
-    callbacks: StreamHandlers,
+    callbacks: StreamHandlers
   ): Promise<void> {
     try {
       // 获取流式OpenAI实例
@@ -604,7 +724,7 @@ export class LLMService implements ILLMService {
           this.processStreamContentWithThinkTags(
             content,
             callbacks,
-            thinkState,
+            thinkState
           );
 
           await new Promise((resolve) => setTimeout(resolve, 10));
@@ -626,7 +746,7 @@ export class LLMService implements ILLMService {
     } catch (error) {
       console.error("流式处理过程中出错:", error);
       callbacks.onError(
-        error instanceof Error ? error : new Error(String(error)),
+        error instanceof Error ? error : new Error(String(error))
       );
       throw error;
     }
@@ -638,7 +758,7 @@ export class LLMService implements ILLMService {
   private async streamGeminiMessage(
     messages: Message[],
     modelConfig: ModelConfig,
-    callbacks: StreamHandlers,
+    callbacks: StreamHandlers
   ): Promise<void> {
     // 提取系统消息
     const systemMessages = messages.filter((msg) => msg.role === "system");
@@ -652,12 +772,12 @@ export class LLMService implements ILLMService {
 
     // 过滤出用户和助手消息
     const conversationMessages = messages.filter(
-      (msg) => msg.role !== "system",
+      (msg) => msg.role !== "system"
     );
 
     // 创建聊天会话
     const generationConfig = this.buildGeminiGenerationConfig(
-      modelConfig.llmParams,
+      modelConfig.llmParams
     );
 
     const chatOptions: any = {
@@ -720,7 +840,7 @@ export class LLMService implements ILLMService {
     } catch (error) {
       console.error("流式处理过程中出错:", error);
       callbacks.onError(
-        error instanceof Error ? error : new Error(String(error)),
+        error instanceof Error ? error : new Error(String(error))
       );
       throw error;
     }
@@ -763,7 +883,7 @@ export class LLMService implements ILLMService {
    */
   async fetchModelList(
     provider: string,
-    customConfig?: Partial<ModelConfig>,
+    customConfig?: Partial<ModelConfig>
   ): Promise<ModelOption[]> {
     try {
       // 获取基础配置
@@ -831,12 +951,12 @@ export class LLMService implements ILLMService {
    * 获取OpenAI兼容API的模型信息
    */
   private async fetchOpenAICompatibleModelsInfo(
-    modelConfig: ModelConfig,
+    modelConfig: ModelConfig
   ): Promise<ModelInfo[]> {
     // 先检查baseURL是否以/v1结尾
     if (modelConfig.baseURL && !/\/v1$/.test(modelConfig.baseURL)) {
       throw new APIError(
-        `MISSING_V1_SUFFIX: baseURL should end with "/v1" for OpenAI-compatible APIs. Current: ${modelConfig.baseURL}`,
+        `MISSING_V1_SUFFIX: baseURL should end with "/v1" for OpenAI-compatible APIs. Current: ${modelConfig.baseURL}`
       );
     }
 
@@ -864,7 +984,7 @@ export class LLMService implements ILLMService {
 
       // 返回格式不对，抛出标准化错误信息
       throw new APIError(
-        `INVALID_RESPONSE_FORMAT: ${JSON.stringify(response)}`,
+        `INVALID_RESPONSE_FORMAT: ${JSON.stringify(response)}`
       );
     } catch (error: any) {
       console.error("Failed to fetch model list:", error);
@@ -903,7 +1023,7 @@ export class LLMService implements ILLMService {
         // 根据检测结果抛出相应错误
         if (isCrossOriginError) {
           throw new APIError(
-            `CROSS_ORIGIN_CONNECTION_FAILED: ${error.message}`,
+            `CROSS_ORIGIN_CONNECTION_FAILED: ${error.message}`
           );
         } else {
           throw new APIError(`CONNECTION_FAILED: ${error.message}`);
@@ -923,7 +1043,7 @@ export class LLMService implements ILLMService {
    * 获取Gemini模型信息
    */
   private async fetchGeminiModelsInfo(
-    modelConfig: ModelConfig,
+    modelConfig: ModelConfig
   ): Promise<ModelInfo[]> {
     console.log(`获取${modelConfig.name || "Gemini"}的模型列表`);
 
@@ -935,7 +1055,7 @@ export class LLMService implements ILLMService {
    * 获取Anthropic模型信息
    */
   private async fetchAnthropicModelsInfo(
-    modelConfig: ModelConfig,
+    modelConfig: ModelConfig
   ): Promise<ModelInfo[]> {
     console.log(`获取${modelConfig.name || "Anthropic"}的模型列表`);
 
@@ -952,7 +1072,7 @@ export class LLMService implements ILLMService {
    * 获取DeepSeek模型信息
    */
   private async fetchDeepSeekModelsInfo(
-    modelConfig: ModelConfig,
+    modelConfig: ModelConfig
   ): Promise<ModelInfo[]> {
     console.log(`获取${modelConfig.name || "DeepSeek"}的模型列表`);
 
@@ -977,7 +1097,7 @@ export class LLMService implements ILLMService {
    * 中的 validateLLMParams 验证，确保安全性
    */
   private buildGeminiGenerationConfig(
-    llmParams: Record<string, any> = {},
+    llmParams: Record<string, any> = {}
   ): any {
     const {
       temperature,
@@ -1032,7 +1152,7 @@ export function createLLMService(modelManager: ModelManager): ILLMService {
   // 在Electron环境中，返回代理实例
   if (isRunningInElectron()) {
     console.log(
-      "[LLM Service Factory] Electron environment detected, using proxy.",
+      "[LLM Service Factory] Electron environment detected, using proxy."
     );
     return new ElectronLLMProxy();
   }
@@ -1040,7 +1160,7 @@ export function createLLMService(modelManager: ModelManager): ILLMService {
   // 检查是否启用LiteLLM智能路由
   if (process.env.LITELLM_ENABLED === "true" && process.env.LITELLM_BASE_URL) {
     console.log(
-      "[LLM Service Factory] LiteLLM smart routing enabled, using LiteLLM service.",
+      "[LLM Service Factory] LiteLLM smart routing enabled, using LiteLLM service."
     );
     // Lazy load to avoid circular dependencies
     const {

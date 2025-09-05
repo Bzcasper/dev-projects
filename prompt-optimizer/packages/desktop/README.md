@@ -1,18 +1,20 @@
+<!-- @format -->
+
 # 桌面应用环境变量配置指南
 
 ## 环境变量加载顺序
 
 桌面应用会按以下顺序加载环境变量：
 
-1. **项目根目录的 `.env.local`** (推荐) - 与测试环境保持一致
+1. **项目根目录的 `.env`** (推荐) - 与测试环境保持一致
 2. **桌面应用目录的 `.env`** - 桌面应用专用配置
 3. **系统环境变量** - 手动设置的环境变量
 
 ## 推荐配置方法
 
-### 方法1：使用项目根目录的 .env.local（推荐）
+### 方法 1：使用项目根目录的 .env（推荐）
 
-在项目根目录 `prompt-optimizer/.env.local` 文件中添加：
+在项目根目录 `prompt-optimizer/.env` 文件中添加：
 
 ```bash
 # OpenAI
@@ -37,28 +39,32 @@ VITE_CUSTOM_API_MODEL=your_custom_model
 ```
 
 **优点**：
-- 与Web版本和测试环境共享同一配置
+
+- 与 Web 版本和测试环境共享同一配置
 - 只需维护一个配置文件
 - 自动被`.gitignore`排除，不会泄露密钥
 
-### 方法2：桌面应用专用配置
+### 方法 2：桌面应用专用配置
 
 在 `packages/desktop/.env` 文件中添加相同的环境变量。
 
 **优点**：
+
 - 桌面应用独立配置
-- 可以与Web版本使用不同的API密钥
+- 可以与 Web 版本使用不同的 API 密钥
 
-### 方法3：系统环境变量
+### 方法 3：系统环境变量
 
-Windows用户：
+Windows 用户：
+
 ```cmd
 set VITE_OPENAI_API_KEY=your_openai_key_here
 set VITE_GEMINI_API_KEY=your_gemini_key_here
 npm start
 ```
 
-macOS/Linux用户：
+macOS/Linux 用户：
+
 ```bash
 export VITE_OPENAI_API_KEY=your_openai_key_here
 export VITE_GEMINI_API_KEY=your_gemini_key_here
@@ -81,20 +87,24 @@ npm start
 
 ## 常见问题
 
-### Q: 我的.env.local文件有效吗？
+### Q: 我的.env.local 文件有效吗？
+
 A: **有效！** 桌面应用现在会自动加载项目根目录的`.env.local`文件。
 
-### Q: 为什么UI显示有API密钥，但测试连接失败？
-A: 这是因为UI进程和主进程环境隔离。确保：
+### Q: 为什么 UI 显示有 API 密钥，但测试连接失败？
+
+A: 这是因为 UI 进程和主进程环境隔离。确保：
+
 1. 环境变量正确设置在`.env.local`文件中
 2. 重启桌面应用以重新加载环境变量
 3. 检查主进程控制台确认环境变量被正确读取
 
 ### Q: 可以同时使用多种配置方法吗？
-A: 可以。dotenv会按加载顺序合并配置，后加载的不会覆盖已存在的变量。
+
+A: 可以。dotenv 会按加载顺序合并配置，后加载的不会覆盖已存在的变量。
 
 ## 安全提醒
 
-- 永远不要将包含API密钥的文件提交到Git仓库
+- 永远不要将包含 API 密钥的文件提交到 Git 仓库
 - `.env.local`已在`.gitignore`中排除
-- 如果使用`.env`文件，请手动添加到`.gitignore` 
+- 如果使用`.env`文件，请手动添加到`.gitignore`

@@ -282,3 +282,9 @@ export type {
   TemplateSelectionKey,
   StorageKey,
 } from "./constants/storage-keys";
+
+// 导出数据管理器相关
+export { DataManager } from "./services/data/manager";
+export { ElectronDataManagerProxy } from "./services/data/electron-proxy";
+export { createDataManager } from "./services/data/manager";
+export type { IDataManager } from "./services/data/manager";

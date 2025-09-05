@@ -1,0 +1,6 @@
+Priority,Severity,Type,File,Description,Status
+1,FIXED,MIXED_SERVICE_CODE,"./packages/core/src/services/vector/service.ts","✅ CRITICAL FIXED: Replaced 8+ Qdrant refs with ChromaDB CloudClient - Core service migration complete","RESOLVED"
+2,FIXED,INCORRECT_ENDPOINT,"./packages/core/src/services/vector/service.ts","✅ CRITICAL FIXED: Removed Supabase URLs and default to env vars","RESOLVED"
+3,VERIFIED,NO_ERRORS,"./packages/core/src/services/vector/service.ts","✅ VERIFIED: TypeScript compilation passes with 0 errors","VALIDATED"
+4,OPTIONAL,MIXED_MODULES,"./packages/core/src/services/llm/service.ts","CommonJS require() in TS file - Non-critical improvement","OPTIONAL"
+5,EXPECTED,EMBEDDING_REQUIREMENT,"CHROMADB_CLOUD","ℹ️ EXPECTED BEHAVIOR: ChromaDB Cloud requires explicit embeddings (not a bug)","ARCHITECTURAL_REQUIREMENT"

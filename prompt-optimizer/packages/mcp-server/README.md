@@ -1,3 +1,5 @@
+<!-- @format -->
+
 # MCP Server for Prompt Optimizer
 
 Provides MCP (Model Context Protocol) server for the prompt optimizer project. Offers prompt optimization tools, supports connection via HTTP protocol, can be used by any MCP compatible client.
@@ -61,9 +63,10 @@ pnpm mcp:test
 
 ### Environment Variables
 
-When developing, configure `.env.local` file in the project root directory. For detailed configuration instructions, please refer to [User Guide](../../docs/user/mcp-server.md#environment-variable-configuration).
+When developing, configure the `.env` file in the project root directory. For detailed configuration instructions, please refer to [User Guide](../../docs/user/mcp-server.md#environment-variable-configuration).
 
 Development environment minimum configuration example:
+
 ```bash
 # Configure at least one API key
 VITE_OPENAI_API_KEY=your-openai-key
@@ -95,8 +98,6 @@ MCP_LOG_LEVEL=error pnpm start
 - `info` - General information (service startup, configuration, etc.)
 - `warn` - Warning information (non-fatal issues)
 - `error` - Error information (issues that need attention)
-
-
 
 ## Development
 
@@ -131,6 +132,7 @@ npx @modelcontextprotocol/inspector
 ```
 
 Then in the Inspector Web UI:
+
 1. Select transmission method: `Streamable HTTP`
 2. Server URL: `http://localhost:3000/mcp`
 3. Click "Connect" to connect to server
@@ -141,11 +143,13 @@ Then in the Inspector Web UI:
 **Important Note**: MCP protocol is not a simple REST API, cannot test directly with curl.
 
 **Recommended Testing Methods**:
+
 1. **MCP Inspector** (Official tool) - Best choice
 2. **Claude Desktop** - Actual usage scenario
 3. **Custom MCP client** - Use `@modelcontextprotocol/sdk`
 
 **Why cannot use curl**:
+
 - MCP uses JSON-RPC 2.0 protocol
 - Requires special handshake and initialization process
 - HTTP transport uses streaming connection, not simple request-response
@@ -159,6 +163,7 @@ Then in the Inspector Web UI:
 ## Architecture Design
 
 This MCP server follows zero-invasion design principles:
+
 - Only uses existing Core module APIs, no need to modify
 - Uses memory storage to implement stateless operation
 - Provides parameter adaptation between MCP and Core formats

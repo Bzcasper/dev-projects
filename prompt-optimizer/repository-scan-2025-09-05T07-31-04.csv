@@ -1,0 +1,5 @@
+Priority,Severity,Type,File,Description
+1,CRITICAL,MIXED_SERVICE_CODE,"./packages/core/src/services/vector/service.ts","ChromaDB file contains Qdrant references - likely incomplete migration"
+2,HIGH,MIXED_MODULES,"./packages/core/src/services/llm/service.ts","TypeScript file using CommonJS require() instead of ES6 imports: 1 occurrences"
+3,HIGH,MIXED_MODULES,"./packages/core/src/services/vector/service.ts","TypeScript file using CommonJS require() instead of ES6 imports: 1 occurrences"
+4,HIGH,TYPESCRIPT_ERRORS,"GLOBAL","TypeScript compilation failed with 0 errors. Run 'npx tsc --noEmit' for details."

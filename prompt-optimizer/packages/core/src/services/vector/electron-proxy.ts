@@ -3,41 +3,40 @@
  * Provides IPC bridge for Electron renderer process
  */
 
-import type { 
-  IVectorSearchService, 
-  VectorSearchConfig, 
-  VectorSearchDocument, 
-  SearchResult, 
-  VectorSearchQuery 
-} from './types';
+import type {
+  IVectorSearchService,
+  VectorSearchConfig,
+  VectorSearchDocument,
+  SearchResult,
+  VectorSearchQuery,
+} from "./types";
 
-declare global {
-  interface Window {
-    electronAPI?: {
-      vector?: {
-        initialize: (config: VectorSearchConfig) => Promise<void>;
-        addDocuments: (documents: VectorSearchDocument[]) => Promise<void>;
-        search: (query: VectorSearchQuery) => Promise<SearchResult[]>;
-        deleteDocuments: (ids: string[]) => Promise<void>;
-        getCollectionInfo: () => Promise<{
-          name: string;
-          count: number;
-          metadata?: Record<string, any>;
-        }>;
-        isReady: () => Promise<boolean>;
-      };
-    };
-  }
+interface VectorElectronAPI {
+  vector?: {
+    initialize: (config: VectorSearchConfig) => Promise<void>;
+    addDocuments: (documents: VectorSearchDocument[]) => Promise<void>;
+    search: (query: VectorSearchQuery) => Promise<SearchResult[]>;
+    deleteDocuments: (ids: string[]) => Promise<void>;
+    getCollectionInfo: () => Promise<{
+      name: string;
+      count: number;
+      metadata?: Record<string, any>;
+    }>;
+    isReady: () => Promise<boolean>;
+  };
 }
 
 export class ElectronVectorSearchProxy implements IVectorSearchService {
-  private electronAPI: NonNullable<Window['electronAPI']>['vector'];
+  private electronAPI: NonNullable<VectorElectronAPI["vector"]>;
 
   constructor() {
-    if (!window.electronAPI?.vector) {
-      throw new Error('Electron Vector API not available. Make sure you are running in Electron environment.');
+    const electronAPI = (window as any).electronAPI as VectorElectronAPI;
+    if (!electronAPI?.vector) {
+      throw new Error(
+        "Electron Vector API not available. Make sure you are running in Electron environment.",
+      );
     }
-    this.electronAPI = window.electronAPI.vector;
+    this.electronAPI = electronAPI.vector;
   }
 
   async initialize(config: VectorSearchConfig): Promise<void> {
@@ -67,6 +66,8 @@ export class ElectronVectorSearchProxy implements IVectorSearchService {
   isReady(): boolean {
     // Note: Electron IPC is async, but this method needs to be sync
     // In practice, you might want to cache the ready state
-    throw new Error('isReady() not supported in Electron proxy. Use getCollectionInfo() instead.');
+    throw new Error(
+      "isReady() not supported in Electron proxy. Use getCollectionInfo() instead.",
+    );
   }
 }

@@ -1,18 +1,21 @@
-import { ModelConfig } from './types';
-import { getEnvVar, clearCustomModelEnvCache } from '../../utils/environment';
-import { createStaticModels } from './static-models';
-import { generateDynamicModels } from './model-utils';
+/** @format */
+
+import { ModelConfig } from "./types";
+import { getEnvVar, clearCustomModelEnvCache } from "../../utils/environment";
+import { createStaticModels } from "./static-models";
+import { generateDynamicModels } from "./model-utils";
 
 // 获取环境变量并生成静态模型配置
 const staticModels: Record<string, ModelConfig> = createStaticModels({
-  OPENAI_API_KEY: getEnvVar('VITE_OPENAI_API_KEY').trim(),
-  GEMINI_API_KEY: getEnvVar('VITE_GEMINI_API_KEY').trim(),
-  DEEPSEEK_API_KEY: getEnvVar('VITE_DEEPSEEK_API_KEY').trim(),
-  SILICONFLOW_API_KEY: getEnvVar('VITE_SILICONFLOW_API_KEY').trim(),
-  ZHIPU_API_KEY: getEnvVar('VITE_ZHIPU_API_KEY').trim(),
-  CUSTOM_API_KEY: getEnvVar('VITE_CUSTOM_API_KEY').trim(),
-  CUSTOM_API_BASE_URL: getEnvVar('VITE_CUSTOM_API_BASE_URL'),
-  CUSTOM_API_MODEL: getEnvVar('VITE_CUSTOM_API_MODEL')
+  OPENAI_API_KEY: getEnvVar("VITE_OPENAI_API_KEY").trim(),
+  GROQ_API_KEY: getEnvVar("VITE_GROQ_API_KEY").trim(),
+  GEMINI_API_KEY: getEnvVar("VITE_GEMINI_API_KEY").trim(),
+  DEEPSEEK_API_KEY: getEnvVar("VITE_DEEPSEEK_API_KEY").trim(),
+  SILICONFLOW_API_KEY: getEnvVar("VITE_SILICONFLOW_API_KEY").trim(),
+  ZHIPU_API_KEY: getEnvVar("VITE_ZHIPU_API_KEY").trim(),
+  CUSTOM_API_KEY: getEnvVar("VITE_CUSTOM_API_KEY").trim(),
+  CUSTOM_API_BASE_URL: getEnvVar("VITE_CUSTOM_API_BASE_URL"),
+  CUSTOM_API_MODEL: getEnvVar("VITE_CUSTOM_API_MODEL"),
 });
 
 /**
@@ -25,7 +28,7 @@ export function getAllModels(): Record<string, ModelConfig> {
   // 合并静态模型和动态模型
   return {
     ...staticModels,
-    ...dynamicModels
+    ...dynamicModels,
   };
 }
 

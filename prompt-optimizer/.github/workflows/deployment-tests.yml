@@ -1,0 +1,238 @@
+name: Deployment Readiness Tests
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '18'
+  PNPM_VERSION: '8'
+
+jobs:
+  deployment-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    strategy:
+      matrix:
+        test-suite:
+          - vercel-deployment
+          - performance-benchmarks
+          - security-validation
+          - environment-config
+          - edge-cases
+          - health-checks
+          - disaster-recovery
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: false
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Create results directory
+        run: mkdir -p tests/deployment/results
+
+      - name: Run deployment test suite - ${{ matrix.test-suite }}
+        run: |
+          npx vitest run tests/deployment/${{ matrix.test-suite }}.test.js \
+            --config tests/deployment/vitest.config.deployment.ts \
+            --reporter=default \
+            --reporter=junit \
+            --reporter=json \
+            --outputFile.junit=tests/deployment/results/${{ matrix.test-suite }}-results.xml \
+            --outputFile.json=tests/deployment/results/${{ matrix.test-suite }}-results.json
+        env:
+          NODE_ENV: production
+          DEPLOYMENT_TEST: true
+          DISABLE_ANALYTICS: true
+          DISABLE_TELEMETRY: true
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: deployment-test-results-${{ matrix.test-suite }}
+          path: |
+            tests/deployment/results/${{ matrix.test-suite }}-*.xml
+            tests/deployment/results/${{ matrix.test-suite }}-*.json
+          retention-days: 30
+
+      - name: Upload build artifacts on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: build-artifacts-${{ matrix.test-suite }}-failure
+          path: |
+            packages/*/dist/
+            packages/*/node_modules/.vite/
+            *.log
+            npm-debug.log*
+            yarn-debug.log*
+            yarn-error.log*
+            pnpm-debug.log*
+          retention-days: 7
+
+  deployment-summary:
+    runs-on: ubuntu-latest
+    needs: deployment-tests
+    if: always()
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Download all test results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: deployment-test-results-*
+          path: test-results
+          merge-multiple: true
+
+      - name: Generate deployment readiness report
+        run: |
+          echo "# 🚀 Deployment Readiness Report" > deployment-report.md
+          echo "" >> deployment-report.md
+          echo "Generated on: $(date)" >> deployment-report.md
+          echo "Commit: ${{ github.sha }}" >> deployment-report.md
+          echo "Branch: ${{ github.ref_name }}" >> deployment-report.md
+          echo "" >> deployment-report.md
+          
+          echo "## Test Results Summary" >> deployment-report.md
+          echo "" >> deployment-report.md
+          
+          total_tests=0
+          passed_tests=0
+          failed_tests=0
+          
+          for result_file in test-results/*.json; do
+            if [ -f "$result_file" ]; then
+              test_name=$(basename "$result_file" -results.json)
+              echo "### $test_name" >> deployment-report.md
+              
+              # Parse JSON results (basic parsing - would need jq for complex parsing)
+              if grep -q '"success":true' "$result_file" 2>/dev/null; then
+                echo "✅ **PASSED**" >> deployment-report.md
+                passed_tests=$((passed_tests + 1))
+              else
+                echo "❌ **FAILED**" >> deployment-report.md
+                failed_tests=$((failed_tests + 1))
+              fi
+              total_tests=$((total_tests + 1))
+              echo "" >> deployment-report.md
+            fi
+          done
+          
+          echo "## Overall Status" >> deployment-report.md
+          echo "" >> deployment-report.md
+          echo "- **Total Tests**: $total_tests" >> deployment-report.md
+          echo "- **Passed**: $passed_tests" >> deployment-report.md
+          echo "- **Failed**: $failed_tests" >> deployment-report.md
+          echo "" >> deployment-report.md
+          
+          if [ $failed_tests -eq 0 ]; then
+            echo "🎉 **All deployment tests passed! Ready for production deployment.**" >> deployment-report.md
+            echo "DEPLOYMENT_READY=true" >> $GITHUB_ENV
+          else
+            echo "⚠️ **Deployment tests failed. Review failures before deploying.**" >> deployment-report.md
+            echo "DEPLOYMENT_READY=false" >> $GITHUB_ENV
+          fi
+
+      - name: Upload deployment report
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-readiness-report
+          path: deployment-report.md
+          retention-days: 30
+
+      - name: Comment PR with results
+        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request'
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('deployment-report.md', 'utf8');
+            
+            const comment = `## 🚀 Deployment Readiness Test Results
+            
+            ${report}
+            
+            <details>
+            <summary>📊 View detailed test artifacts</summary>
+            
+            - Download test results from the Actions tab
+            - Check individual test suite results for detailed information
+            - Review build artifacts if tests failed
+            
+            </details>`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Set deployment status
+        if: always()
+        run: |
+          if [ "${{ env.DEPLOYMENT_READY }}" = "true" ]; then
+            echo "✅ Deployment tests passed - ready for production"
+            exit 0
+          else
+            echo "❌ Deployment tests failed - not ready for production"
+            exit 1
+          fi
+
+  # Optional: Trigger actual Vercel deployment if tests pass
+  trigger-deployment:
+    runs-on: ubuntu-latest
+    needs: deployment-summary
+    if: github.ref == 'refs/heads/main' && success()
+    
+    steps:
+      - name: Trigger Vercel deployment
+        run: |
+          echo "🚀 Triggering Vercel deployment..."
+          echo "Deployment tests passed - proceeding with production deployment"
+          # Vercel will automatically deploy from main branch
+          # This step is mainly for logging/notification purposes

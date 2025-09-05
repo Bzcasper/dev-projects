@@ -69,6 +69,10 @@ export interface IVectorSearchService {
 }
 
 export interface VectorSearchError extends Error {
-  code: 'CHROMA_CONNECTION_ERROR' | 'EMBEDDING_ERROR' | 'SEARCH_ERROR' | 'DOCUMENT_ERROR';
+  code:
+    | "CHROMA_CONNECTION_ERROR"
+    | "EMBEDDING_ERROR"
+    | "SEARCH_ERROR"
+    | "DOCUMENT_ERROR";
   details?: any;
 }
