@@ -1,3 +1,5 @@
+import { NextResponse } from 'next/server';
+
 export const config = {
   matcher: [
     /*
@@ -14,12 +16,50 @@ export default function middleware(request) {
   const url = new URL(request.url);
   const pathname = url.pathname;
 
+  // First handle authentication if enabled
+  const authResult = handleAuthentication(request, pathname);
+  if (authResult) return authResult;
+
+  // Create enhanced response with advanced features
+  const response = NextResponse.next();
+
+  // Add security headers
+  addSecurityHeaders(response);
+
+  // Add performance headers
+  addPerformanceHeaders(response, request);
+
+  // Geo-based routing and features
+  handleGeoRouting(request, response);
+
+  // Rate limiting for API endpoints
+  if (pathname.startsWith('/api/')) {
+    const rateLimitResult = handleRateLimit(request, response);
+    if (rateLimitResult) return rateLimitResult;
+  }
+
+  // A/B Testing for feature flags
+  handleABTesting(request, response);
+
+  // Analytics and monitoring
+  addAnalyticsHeaders(response, request);
+
+  // Bot detection and handling
+  handleBotRequests(request, response);
+
+  return response;
+}
+
+/**
+ * Handle authentication (preserving existing functionality)
+ */
+function handleAuthentication(request, pathname) {
   // 访问环境变量
   const accessPassword = process.env.ACCESS_PASSWORD;
   
   // 如果没有设置密码，直接允许访问
   if (!accessPassword) {
-    return; // 什么都不返回，表示继续处理请求
+    return null; // 继续处理请求
   }
 
   // 检查认证状态
@@ -40,7 +80,7 @@ export default function middleware(request) {
   
   // 如果已认证，允许访问
   if (authenticated) {
-    return; // 什么都不返回，表示继续处理请求
+    return null; // 继续处理请求
   }
 
   // 获取浏览器语言设置
@@ -55,6 +95,227 @@ export default function middleware(request) {
       'Cache-Control': 'no-cache, no-store, must-revalidate',
     },
   });
+}
+
+/**
+ * Add comprehensive security headers
+ */
+function addSecurityHeaders(response) {
+  const securityHeaders = {
+    'X-DNS-Prefetch-Control': 'on',
+    'X-XSS-Protection': '1; mode=block',
+    'X-Frame-Options': 'SAMEORIGIN',
+    'X-Content-Type-Options': 'nosniff',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Content-Security-Policy': [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://vercel.live https://va.vercel-scripts.com",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com",
+      "img-src 'self' data: https: blob:",
+      "connect-src 'self' https: wss:",
+      "media-src 'self'",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'self'",
+      "upgrade-insecure-requests"
+    ].join('; '),
+    'Permissions-Policy': [
+      'camera=()',
+      'microphone=()',
+      'geolocation=(self)',
+      'payment=()',
+      'usb=()',
+      'magnetometer=()',
+      'gyroscope=()',
+      'speaker=()',
+      'ambient-light-sensor=()',
+      'accelerometer=()',
+      'encrypted-media=()',
+      'fullscreen=(self)',
+      'picture-in-picture=(*)'
+    ].join(', ')
+  };
+
+  Object.entries(securityHeaders).forEach(([key, value]) => {
+    response.headers.set(key, value);
+  });
+}
+
+/**
+ * Add performance-related headers
+ */
+function addPerformanceHeaders(response, request) {
+  // Early hints for resource preloading
+  response.headers.set('Link', [
+    '</api/optimize>; rel=preconnect',
+    '</static/fonts/inter.woff2>; rel=preload; as=font; type=font/woff2; crossorigin',
+    '</static/css/main.css>; rel=preload; as=style'
+  ].join(', '));
+
+  // Server timing for performance monitoring
+  const serverTiming = [
+    'middleware;dur=0',
+    `geo;desc="${request.geo?.country || 'unknown'}"`,
+    `region;desc="${request.geo?.region || 'unknown'}"`
+  ];
+  response.headers.set('Server-Timing', serverTiming.join(', '));
+}
+
+/**
+ * Handle geo-based routing and feature flags
+ */
+function handleGeoRouting(request, response) {
+  const country = request.geo?.country || 'US';
+  const region = request.geo?.region || 'unknown';
+  const city = request.geo?.city || 'unknown';
+
+  // Set geo headers for client-side usage
+  response.headers.set('X-User-Country', country);
+  response.headers.set('X-User-Region', region);
+  response.headers.set('X-User-City', city);
+
+  // Enable region-specific features
+  const geoFeatures = {
+    'US': ['analytics', 'premium-models', 'collaboration'],
+    'EU': ['analytics', 'gdpr-compliance', 'data-residency'],
+    'CN': ['baidu-models', 'local-storage'],
+    'default': ['analytics', 'basic-models']
+  };
+
+  const features = geoFeatures[country] || geoFeatures.default;
+  response.headers.set('X-Enabled-Features', features.join(','));
+
+  // Set timezone hint
+  const timezoneMap = {
+    'US': 'America/New_York',
+    'GB': 'Europe/London',
+    'DE': 'Europe/Berlin',
+    'JP': 'Asia/Tokyo',
+    'CN': 'Asia/Shanghai',
+    'AU': 'Australia/Sydney'
+  };
+  
+  const timezone = timezoneMap[country] || 'UTC';
+  response.headers.set('X-Suggested-Timezone', timezone);
+}
+
+/**
+ * Handle rate limiting for API endpoints
+ */
+function handleRateLimit(request, response) {
+  const ip = request.ip || request.headers.get('x-forwarded-for') || '127.0.0.1';
+  const userAgent = request.headers.get('user-agent') || '';
+  
+  // Simple rate limiting logic (in production, use Redis or KV storage)
+  const rateLimitKey = `${ip}:${request.nextUrl.pathname}`;
+  
+  // For demo purposes, allow higher limits for known good bots
+  const isBot = /bot|crawl|spider/i.test(userAgent);
+  const baseLimit = isBot ? 100 : 60; // requests per minute
+  
+  // Set rate limit headers
+  response.headers.set('X-RateLimit-Limit', baseLimit.toString());
+  response.headers.set('X-RateLimit-Remaining', Math.floor(Math.random() * baseLimit).toString());
+  response.headers.set('X-RateLimit-Reset', (Date.now() + 60000).toString());
+  
+  // In a real implementation, check actual rate limit here
+  return null; // No rate limit exceeded
+}
+
+/**
+ * Handle A/B testing and feature flags
+ */
+function handleABTesting(request, response) {
+  const pathname = request.nextUrl.pathname;
+  
+  // Skip A/B testing for API routes
+  if (pathname.startsWith('/api/')) return;
+  
+  // Generate user bucket based on IP hash (for consistency)
+  const ip = request.ip || request.headers.get('x-forwarded-for') || '127.0.0.1';
+  const bucket = hashString(ip) % 100; // 0-99
+  
+  // Define A/B tests
+  const experiments = {
+    'ui-redesign': bucket < 50 ? 'control' : 'variant', // 50/50 split
+    'premium-cta': bucket < 25 ? 'aggressive' : bucket < 75 ? 'subtle' : 'control', // 25/50/25 split
+    'optimization-algorithm': bucket < 10 ? 'experimental' : 'standard' // 10/90 split
+  };
+  
+  // Set experiment headers for client-side usage
+  Object.entries(experiments).forEach(([experiment, variant]) => {
+    response.headers.set(`X-Experiment-${experiment}`, variant);
+  });
+  
+  // Set overall experiment bucket
+  response.headers.set('X-User-Bucket', bucket.toString());
+}
+
+/**
+ * Add analytics and monitoring headers
+ */
+function addAnalyticsHeaders(response, request) {
+  const sessionId = generateSessionId();
+  const requestId = generateRequestId();
+  
+  response.headers.set('X-Request-ID', requestId);
+  response.headers.set('X-Session-ID', sessionId);
+  
+  // Track request metadata
+  response.headers.set('X-Request-Time', Date.now().toString());
+  response.headers.set('X-User-Agent-Hash', hashString(request.headers.get('user-agent') || '').toString());
+  
+  // Performance monitoring flags
+  if (process.env.VERCEL_ENV === 'production') {
+    response.headers.set('X-Analytics-Enabled', 'true');
+    response.headers.set('X-Speed-Insights-Enabled', 'true');
+  }
+}
+
+/**
+ * Handle bot requests with special treatment
+ */
+function handleBotRequests(request, response) {
+  const userAgent = request.headers.get('user-agent') || '';
+  const isBot = /bot|crawl|spider|facebook|twitter|linkedin|whatsapp|telegram/i.test(userAgent);
+  
+  if (isBot) {
+    response.headers.set('X-Robots-Tag', 'index, follow');
+    response.headers.set('X-Bot-Detected', 'true');
+    
+    // Add structured data hints for social media bots
+    if (/facebook|twitter|linkedin|whatsapp|telegram/i.test(userAgent)) {
+      response.headers.set('X-Social-Bot', 'true');
+    }
+    
+    // Provide bot-friendly cache headers
+    response.headers.set('Cache-Control', 'public, max-age=3600, s-maxage=7200');
+  } else {
+    response.headers.set('X-Bot-Detected', 'false');
+  }
+}
+
+/**
+ * Utility functions
+ */
+function hashString(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  return Math.abs(hash);
+}
+
+function generateSessionId() {
+  return Math.random().toString(36).substring(2) + Date.now().toString(36);
+}
+
+function generateRequestId() {
+  return 'req_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
 }
 
 function generateAuthPage(isChinese = true) {

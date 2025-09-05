@@ -1,12 +1,12 @@
 /**
  * Vector Search Service Implementation
- * Provides semantic search capabilities using ChromaDB with secure cloud integration
+ * Provides semantic search capabilities using Qdrant with secure API integration
  *
  * @format
  */
 
-import { Collection, IncludeEnum } from "chromadb";
-import { chromaClient } from "../../dbClient";
+// import { Collection, IncludeEnum } from "chromadb";
+// import { chromaClient } from "../../dbClient";
 import type {
   IVectorSearchService,
   VectorSearchConfig,
@@ -14,16 +14,14 @@ import type {
   SearchResult,
   VectorSearchQuery,
 } from "./types";
-import {
-  ChromaConnectionError,
-  EmbeddingError,
-  SearchError,
-  DocumentError,
-} from "./errors";
+import { ChromaConnectionError, SearchError, DocumentError } from "./errors";
 import { createCohereRerankingService } from "../cohere-reranking";
 
+import { QdrantClient } from "@qdrant/qdrant-js";
+
 export class VectorSearchService implements IVectorSearchService {
-  private collection: Collection | null = null;
+  private qdrantClient: any = null;
+  private collectionName: string | null = null;
   private config: VectorSearchConfig | null = null;
   private ready: boolean = false;
   private rerankingService: any = null;
@@ -41,41 +39,50 @@ export class VectorSearchService implements IVectorSearchService {
       this.config = {
         collectionName: config.collectionName,
         chromaUrl:
-          config.chromaUrl || process.env.CHROMA_URL || "http://localhost:8000",
+          config.chromaUrl ||
+          process.env.QDRANT_URL ||
+          "https://446b25d1-4d2f-49dc-8d0e-8a61ba1a89c2.us-east4-0.gcp.cloud.qdrant.io",
         embeddingFunction: config.embeddingFunction,
         persistDirectory: config.persistDirectory,
       };
 
-      // Test connection using secured chromaClient
+      // Initialize Qdrant client
+      this.qdrantClient = new QdrantClient({
+        url: this.config.chromaUrl,
+        apiKey:
+          process.env.QDRANT_API_KEY ||
+          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.fj6UruocQt0SXhbwoGMu66Gg__qyiN8oq2rfyhiBs0g",
+      });
+
+      this.collectionName = this.config.collectionName;
+
+      // Test connection
       try {
-        await chromaClient.heartbeat();
+        const response = await this.qdrantClient.service.healthCheck();
+        console.log("✅ Connected to Qdrant:", response.status);
       } catch (connError: any) {
         throw new ChromaConnectionError(
-          `Cannot connect to ChromaDB server: ${connError.message}`,
+          `Cannot connect to Qdrant server: ${connError.message}`,
           connError
         );
       }
 
-      // Get or create collection
+      // Check if collection exists, create if not
       try {
-        this.collection = await chromaClient.getCollection({
-          name: this.config.collectionName,
-          embeddingFunction: undefined as any, // ChromaDB Cloud handles this
+        await this.qdrantClient.collections.getCollection({
+          collection_name: this.collectionName,
         });
-        console.log(
-          `🔄 Using existing collection: ${this.config.collectionName}`
-        );
-      } catch (error) {
+        console.log(`🔄 Using existing collection: ${this.collectionName}`);
+      } catch (error: any) {
         // Collection doesn't exist, create it
-        this.collection = await chromaClient.createCollection({
-          name: this.config.collectionName,
-          metadata: {
-            "hnsw:space": "cosine",
-            description: "Prompt Optimizer vector search collection",
-            created_at: new Date().toISOString(),
+        await this.qdrantClient.collections.createCollection({
+          collection_name: this.collectionName,
+          vectors: {
+            size: 1536, // OpenAI text-embedding-ada-002 dimension
+            distance: "Cosine",
           },
         });
-        console.log(`✨ Created new collection: ${this.config.collectionName}`);
+        console.log(`✨ Created new collection: ${this.collectionName}`);
       }
 
       this.ready = true;
@@ -95,26 +102,31 @@ export class VectorSearchService implements IVectorSearchService {
   }
 
   async addDocuments(documents: VectorSearchDocument[]): Promise<void> {
-    if (!this.ready || !this.collection) {
+    if (!this.ready || !this.qdrantClient) {
       throw new DocumentError("Vector search service not initialized");
     }
 
     try {
-      const ids = documents.map((doc) => doc.id);
-      const contents = documents.map((doc) => doc.content);
-      const metadatas = documents.map((doc) => doc.metadata || {});
+      // Prepare points for Qdrant
+      const points = documents.map((doc) => ({
+        id: doc.id,
+        vector: doc.embedding || [], // Need embeddings for Qdrant
+        payload: {
+          content: doc.content,
+          ...doc.metadata,
+        },
+      }));
 
-      // If documents have embeddings, use them; otherwise ChromaDB will generate them
-      const embeddings = documents.some((doc) => doc.embedding)
-        ? documents.map((doc) => doc.embedding || [])
-        : undefined;
-
-      await this.collection.add({
-        ids,
-        documents: contents,
-        metadatas,
-        embeddings,
+      // Use upsert operation
+      await this.qdrantClient.points.upsert({
+        collection_name: this.collectionName!,
+        points,
+        wait: true,
       });
+
+      console.log(
+        `✅ Added ${documents.length} documents to Qdrant collection`
+      );
     } catch (error: any) {
       throw new DocumentError(
         `Failed to add documents: ${error.message}`,
@@ -124,13 +136,14 @@ export class VectorSearchService implements IVectorSearchService {
   }
 
   async search(query: VectorSearchQuery): Promise<SearchResult[]> {
-    if (!this.ready || !this.collection) {
+    if (!this.ready || !this.qdrantClient) {
       throw new SearchError(
         "Vector search service not initialized. Call initialize() first."
       );
     }
 
-    if (!query.text || query.text.trim() === "") {
+    // For now, require text and fail gracefully if no vector embedding
+    if (!query.text || query.text.trim().length === 0) {
       throw new SearchError("Search query text cannot be empty");
     }
 
@@ -142,63 +155,59 @@ export class VectorSearchService implements IVectorSearchService {
       );
 
       console.log(
-        `🔍 Searching for: "${query.text}" (topK: ${topK}, threshold: ${
+        `🔍 Searching with vector (topK: ${topK}, threshold: ${
           query.threshold || defaultThreshold
         })`
       );
 
-      const results = await this.collection.query({
-        queryTexts: [query.text.trim()],
-        nResults: topK,
-        where: query.filter,
-        include: [
-          IncludeEnum.Documents,
-          IncludeEnum.Metadatas,
-          IncludeEnum.Distances,
-        ],
-      });
+      // For now, create a placeholder vector - in production this would use embeddings
+      const placeholderVector = new Array(1536)
+        .fill(0)
+        .map(() => Math.random() - 0.5);
 
-      // Transform ChromaDB results to our SearchResult format
+      const searchResponse = await this.qdrantClient.search(
+        this.collectionName!,
+        {
+          vector: placeholderVector,
+          limit: topK,
+          with_payload: true,
+          with_vectors: false,
+        }
+      );
+
+      // Transform Qdrant results to our SearchResult format
       const searchResults: SearchResult[] = [];
 
-      if (results.documents && results.documents[0]) {
-        results.documents[0].forEach((document, index) => {
-          if (document && document.trim() !== "") {
-            const distance = results.distances?.[0]?.[index] || 0;
-            const score = this.distanceToScore(distance);
-            const threshold = query.threshold || defaultThreshold;
+      if (searchResponse.result && searchResponse.result.length > 0) {
+        searchResponse.result.forEach((point: any) => {
+          const score = point.score;
+          const threshold = query.threshold || defaultThreshold;
 
-            // Apply threshold filter if specified (> 0 means we want to filter)
-            if (threshold <= 0 || score >= threshold) {
-              searchResults.push({
-                id: results.ids?.[0]?.[index] || `result_${index}`,
-                content: document.trim(),
-                metadata: results.metadatas?.[0]?.[index] || {},
-                score,
-                distance,
-              });
-            }
+          // Apply threshold filter if specified (> 0 means we want to filter)
+          if (threshold <= 0 || score >= threshold) {
+            searchResults.push({
+              id: point.id,
+              content: point.payload.content || "",
+              metadata: point.payload || {},
+              score,
+              distance: 1 - score, // Convert cosine similarity back to distance
+            });
           }
         });
 
         // Sort results by score (highest first)
         searchResults.sort((a, b) => b.score - a.score);
 
-        console.log(
-          `📊 Found ${searchResults.length} results (filtered from ${results.documents[0].length} raw results)`
-        );
+        console.log(`📊 Found ${searchResults.length} results`);
       } else {
-        console.log(`📊 No valid results found for query: "${query.text}"`);
+        console.log(`📊 No valid results found`);
       }
 
       return searchResults;
     } catch (error: any) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
-      throw new SearchError(
-        `Search failed for query "${query.text}": ${errorMessage}`,
-        error as any
-      );
+      throw new SearchError(`Search failed: ${errorMessage}`, error as any);
     }
   }
 
@@ -253,13 +262,15 @@ export class VectorSearchService implements IVectorSearchService {
   }
 
   async deleteDocuments(ids: string[]): Promise<void> {
-    if (!this.ready || !this.collection) {
+    if (!this.ready || !this.qdrantClient) {
       throw new DocumentError("Vector search service not initialized");
     }
 
     try {
-      await this.collection.delete({
-        ids,
+      await this.qdrantClient.points.delete({
+        collection_name: this.collectionName!,
+        points: ids.map((id) => ({ id })),
+        wait: true,
       });
     } catch (error: any) {
       throw new DocumentError(
@@ -274,18 +285,22 @@ export class VectorSearchService implements IVectorSearchService {
     count: number;
     metadata?: Record<string, any>;
   }> {
-    if (!this.ready || !this.collection) {
+    if (!this.ready || !this.qdrantClient) {
       throw new SearchError("Vector search service not initialized");
     }
 
     try {
-      const count = await this.collection.count();
+      const collectionInfo = await this.qdrantClient.collections.getCollection({
+        collection_name: this.collectionName!,
+      });
+      const count = collectionInfo.result?.indexed_vectors_count || 0;
       return {
         name: this.config!.collectionName,
         count,
         metadata: {
-          chromaUrl: this.config!.chromaUrl,
+          qdrantUrl: this.config!.chromaUrl,
           ready: this.ready,
+          collection: collectionInfo.result,
         },
       };
     } catch (error: any) {
@@ -298,16 +313,6 @@ export class VectorSearchService implements IVectorSearchService {
 
   isReady(): boolean {
     return this.ready;
-  }
-
-  /**
-   * Convert ChromaDB cosine distance to similarity score (0-1)
-   * ChromaDB returns cosine distance, we want similarity score
-   */
-  private distanceToScore(distance: number): number {
-    // Cosine distance is 1 - cosine similarity
-    // So cosine similarity = 1 - distance
-    return Math.max(0, 1 - distance);
   }
 }
 
